@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Embedded Sentry — Interactive Gesture Lock Demo</title>
+<meta name="description" content="In-browser simulator of an Arduino + MPU6050 hand-gesture security lock. Record a motion sequence, then replay it to unlock." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo-dot"></div>
+      <div>
+        <div class="brand-title">Embedded Sentry</div>
+        <div class="brand-sub">Gesture-based hardware lock · Live in-browser simulator</div>
+      </div>
+    </div>
+    <div class="gh-link" title="Repository">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 005.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      Embedded-Sentry-Project
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Powered by the same finite-state machine as the real Arduino firmware
+      </div>
+      <h1>Lock a resource with a <span class="grad">secret hand gesture</span>.</h1>
+      <p class="lede">
+        In-browser simulator of an embedded security device I built at NYU using
+        an <b>ATmega328p</b> and an <b>MPU6050</b> accelerometer. It runs the same
+        finite-state machine as the firmware: record a 3-move motion sequence,
+        then replay it to flip the LED on. Wrong gesture? Stays locked.
+      </p>
+      <div class="hero-cta">
+        <button class="btn btn-primary" id="btn-reset">Reset device</button>
+        <button class="btn btn-ghost" id="btn-demo">Run demo sequence</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <!-- LEFT: Device Visualization -->
+      <div class="card device-card">
+        <div class="card-head">
+          <div class="card-title">Device</div>
+          <div class="status-pill" id="lock-state">
+            <span class="dot dot-red" id="lock-dot"></span>
+            <span id="lock-text">LOCKED</span>
+          </div>
+        </div>
+
+        <div class="device-stage">
+          <div class="device" id="device">
+            <div class="device-screen">
+              <div class="led" id="led"></div>
+              <div class="led-label">PIN 13</div>
+            </div>
+            <div class="device-chip">ATmega328p</div>
+            <div class="device-mpu">MPU6050</div>
+          </div>
+
+          <!-- 6 directional rings -->
+          <div class="dir-ring up" data-dir="3"><span>▲</span><label>UP</label></div>
+          <div class="dir-ring down" data-dir="4"><span>▼</span><label>DOWN</label></div>
+          <div class="dir-ring left" data-dir="2"><span>◀</span><label>LEFT</label></div>
+          <div class="dir-ring right" data-dir="1"><span>▶</span><label>RIGHT</label></div>
+          <div class="dir-ring forward" data-dir="5"><span>↗</span><label>FORWARD</label></div>
+          <div class="dir-ring backward" data-dir="6"><span>↙</span><label>BACKWARD</label></div>
+        </div>
+
+        <div class="hint">Click a direction (or use <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>W</kbd> <kbd>S</kbd>) to flick the device.</div>
+      </div>
+
+      <!-- RIGHT: Telemetry + Sequence -->
+      <div class="col">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Phase</div>
+            <div class="phase-pill" id="phase-pill">RECORDING</div>
+          </div>
+          <div class="phase-steps">
+            <div class="step" id="step-rec">
+              <div class="step-num">1</div>
+              <div class="step-body">
+                <div class="step-title">Record secret</div>
+                <div class="step-desc">Perform 3 moves to set your gesture key.</div>
+              </div>
+            </div>
+            <div class="step" id="step-unlock">
+              <div class="step-num">2</div>
+              <div class="step-body">
+                <div class="step-title">Unlock</div>
+                <div class="step-desc">Repeat the same 3 moves to open.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="seq-block">
+            <div class="seq-label">Recorded sequence</div>
+            <div class="seq" id="seq-recorded">
+              <div class="seq-slot">·</div>
+              <div class="seq-slot">·</div>
+              <div class="seq-slot">·</div>
+            </div>
+          </div>
+          <div class="seq-block">
+            <div class="seq-label">Attempted sequence</div>
+            <div class="seq" id="seq-attempt">
+              <div class="seq-slot">·</div>
+              <div class="seq-slot">·</div>
+              <div class="seq-slot">·</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Accelerometer (m/s²)</div>
+            <div class="card-sub">Live MPU6050 simulation</div>
+          </div>
+          <div class="accel">
+            <div class="accel-row"><span class="accel-axis x">X</span><div class="accel-bar"><div id="bar-x"></div></div><span class="accel-val" id="val-x">0.00</span></div>
+            <div class="accel-row"><span class="accel-axis y">Y</span><div class="accel-bar"><div id="bar-y"></div></div><span class="accel-val" id="val-y">0.00</span></div>
+            <div class="accel-row"><span class="accel-axis z">Z</span><div class="accel-bar"><div id="bar-z"></div></div><span class="accel-val" id="val-z">9.81</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Serial monitor</div>
+            <div class="card-sub">Mirrors what the Arduino prints</div>
+          </div>
+          <div class="serial" id="serial"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="info-grid">
+      <div class="info-card">
+        <div class="info-icon">⚙️</div>
+        <h3>Finite-State Machine</h3>
+        <p>The firmware models the lock as an FSM: <code>RECORD</code> → <code>ARMED</code> → <code>UNLOCKING</code> → <code>OPEN</code>. The same FSM runs in this browser demo.</p>
+      </div>
+      <div class="info-card">
+        <div class="info-icon">📐</div>
+        <h3>Direction Detection</h3>
+        <p>Raw accelerometer X/Y/Z is thresholded into one of six discrete directions, with a 500 ms debounce so a single flick maps to one symbol.</p>
+      </div>
+      <div class="info-card">
+        <div class="info-icon">🔒</div>
+        <h3>Hardware Output</h3>
+        <p>On a correct sequence, GPIO pin 13 is driven HIGH for 3 seconds — the unlock signal that could drive a relay, solenoid, or door strike.</p>
+      </div>
+    </section>
+
+    <footer>
+      <div>Built by Mohammad Asfour · NYU Embedded Systems · Spring 2020</div>
+      <div class="footer-tags">
+        <span>C / Arduino</span><span>ATmega328p</span><span>MPU6050</span><span>I²C</span><span>FSM</span>
+      </div>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

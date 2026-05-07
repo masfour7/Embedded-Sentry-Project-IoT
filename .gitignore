@@ -1,0 +1,19 @@
+# Replit
+.replit
+replit.md
+.local/
+.cache/
+.agents/
+
+# Screenshots / local assets
+screenshots/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+.vscode/
+.idea/
